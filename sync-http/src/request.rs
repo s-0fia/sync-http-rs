@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::mime::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Request {
     pub method: Method,
     pub uri: String,
@@ -9,7 +9,7 @@ pub struct Request {
 }
 
 // TODO: Implement more methods
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Method {
     Get,
     Post,
@@ -17,7 +17,8 @@ pub enum Method {
 
 impl Method {
     pub fn parse(method: &str) -> Result<Method, RequestError> {
-        Ok(match method.to_uppercase().as_str() {
+        // Methods are case sensitive
+        Ok(match method.trim() {
             "GET" => Method::Get,
             "POST" => Method::Post,
             _ => Err(RequestError::BadMethod)?,
@@ -25,7 +26,8 @@ impl Method {
     }
 }
 
-#[derive(Debug)]
+// TODO: Add more headers
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Header {
     Host(String),
     UserAgent(String),
@@ -33,16 +35,17 @@ pub enum Header {
 }
 
 impl Header {
-    pub fn parse_header(header: &str) -> Option<Self> {
+    pub fn parse(header: &str) -> Option<Self> {
         let parts = header.split(":");
         let head_type: String = parts.clone().take(1).collect();
-        let head_value: String = parts.skip(1).collect();
+        let head_value: String = parts.skip(1).collect::<Vec<_>>().join(":");
         let head_value = head_value.trim().to_string();
 
-        Some(match head_type.trim() {
-            "Host" => Self::Host(head_value),
-            "User-Agent" => Self::UserAgent(head_value),
-            "Accept" => Self::Accept(ContentType::parse(head_value)?),
+        // Headers are case insensitive
+        Some(match head_type.to_uppercase().trim() {
+            "HOST" => Self::Host(head_value),
+            "USER-AGENT" => Self::UserAgent(head_value),
+            "ACCEPT" => Self::Accept(ContentType::parse(head_value)?),
             _ => None?,
         })
     }
@@ -73,7 +76,7 @@ impl Request {
         let headers = parts
             .iter()
             .skip(1)
-            .filter_map(|&line| Header::parse_header(line))
+            .filter_map(|&line| Header::parse(line))
             .collect::<Vec<_>>();
 
         Ok(Request {
@@ -81,5 +84,84 @@ impl Request {
             uri,
             headers,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn example_request() {
+        let request = Request::parse(
+            "GET / HTTP/1.1\r\n\
+            Host: localhost:8080\r\n\
+            User-Agent: curl/8.5.0\r\n\
+            Accept: */*\r\n\r\n"
+                .into(),
+        );
+
+        let accurate = Request {
+            method: Method::Get,
+            uri: "/".into(),
+            headers: vec![
+                Header::Host("localhost:8080".into()),
+                Header::UserAgent("curl/8.5.0".into()),
+                Header::Accept(ContentType(MediaType::All, MimeType::All)),
+            ],
+        };
+
+        assert_eq!(request, Ok(accurate));
+    }
+
+    #[test]
+    fn header_parsing() {
+        const NUM_TESTS: usize = 5;
+        let headers: [&str; NUM_TESTS] = [
+            "Host: localhost:8080",
+            "user-AGENT: curl/8.5.0",
+            "AcCePt: text/html",
+            "Pragma: no-cache",
+            "",
+        ];
+        let test_vals: [Option<_>; NUM_TESTS] = [
+            Some(Header::Host("localhost:8080".into())),
+            Some(Header::UserAgent("curl/8.5.0".into())),
+            Some(Header::Accept(ContentType(MediaType::Text, MimeType::HTML))),
+            None,
+            None,
+        ];
+
+        // Will fail to compile if more headers are added
+        match test_vals[0].clone().unwrap() {
+            Header::Host(_) | Header::UserAgent(_) | Header::Accept(_) => {}
+        }
+
+        for i in 0..NUM_TESTS {
+            let parsed = Header::parse(headers[i]);
+            assert_eq!(parsed, test_vals[i].clone());
+        }
+    }
+
+    #[test]
+    fn method_parsing() {
+        const NUM_TESTS: usize = 4;
+        let methods: [_; NUM_TESTS] = ["GET", "POST", "get", "post"];
+        let test_vals: [Result<_, _>; NUM_TESTS] = [
+            Ok(Method::Get),
+            Ok(Method::Post),
+            Err(RequestError::BadMethod),
+            Err(RequestError::BadMethod),
+        ];
+
+        // Will fail to compile if more methods are added
+        match Method::Get {
+            Method::Get | Method::Post => {}
+        }
+
+        for i in 0..NUM_TESTS {
+            let parsed = Method::parse(methods[i]);
+            assert_eq!(parsed, test_vals[i]);
+        }
     }
 }
