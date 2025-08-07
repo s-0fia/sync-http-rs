@@ -1,14 +1,15 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use std::{io::Read, net::TcpListener};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub fn listen() -> Result<(), std::io::Error> {
+    let listener = TcpListener::bind("127.0.0.1:8080")?;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    for stream in listener.incoming() {
+        let bytes = stream?.bytes();
+        for byte in bytes {
+            print!("{}", byte? as char);
+        }
+        println!();
     }
+
+    Ok(())
 }
