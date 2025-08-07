@@ -1,5 +1,5 @@
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct ContentType(MediaType, MimeType);
+pub struct ContentType(pub MediaType, pub MimeType);
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum MediaType {
