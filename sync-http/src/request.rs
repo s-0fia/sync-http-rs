@@ -58,27 +58,26 @@ impl Request {
         // Split the request into its parts
         let parts: Vec<&str> = req.split("\n").map(|line| line.trim()).collect();
 
-        // GET / HTTP/1.1
-        // METHOD URI PROTOCOL
+        // Parse out first line
         let first = parts[0].split(" ").collect::<Vec<_>>();
-
         if first.len() != 3 {
             return Err(RequestError::TooManyValues);
         }
         let method = Method::parse(first[0])?;
         let uri = first[1].to_string();
-
         // We only support HTTP/1.1
         if first[2].to_uppercase().as_str() != "HTTP/1.1" {
             return Err(RequestError::BadProtocol);
         }
 
+        // Parse out headers
         let headers = parts
             .iter()
             .skip(1)
             .filter_map(|&line| Header::parse(line))
             .collect::<Vec<_>>();
 
+        // Return the request
         Ok(Request {
             method,
             uri,
