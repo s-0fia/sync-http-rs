@@ -1,5 +1,7 @@
 use std::{io::Read, net::TcpListener};
 
+pub mod mime;
+
 pub fn listen() -> Result<(), std::io::Error> {
     let listener = TcpListener::bind("127.0.0.1:8080")?;
 
