@@ -25,6 +25,7 @@ pub fn listen() -> Result<(), std::io::Error> {
             break;
         }
     }
+    println!("{request}");
     let request = Request::parse(request);
     dbg!(&request);
     stream.shutdown(Shutdown::Read)?;
