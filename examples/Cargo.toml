@@ -1,0 +1,16 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT"
+
+[dev-dependencies]
+# sync-http = { version = "0.1.0", path = "../sync-http", features = [] }
+
+[[example]]
+name = "hello"
+path = "hello.rs"
+
+[lints]
+workspace = true
