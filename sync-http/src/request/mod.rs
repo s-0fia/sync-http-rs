@@ -1,5 +1,6 @@
 use crate::errors::*;
 use crate::mime::*;
+use crate::query::Query;
 pub mod header;
 pub mod method;
 pub use header::*;
@@ -12,6 +13,7 @@ mod tests;
 pub struct Request {
     pub method: Method,
     pub uri: String,
+    pub query: Query,
     pub headers: Vec<Header>,
 }
 
@@ -30,6 +32,10 @@ impl Request {
         let method = Method::parse(first[0])?;
         let uri_parts: Vec<&str> = first[1].split("?").collect();
         let uri = sanatise_uri(uri_parts[0]);
+        let query = match uri_parts.get(1) {
+            Some(part) => Query::parse(part.to_string()),
+            None => Query::default(),
+        };
         // We only support HTTP/1.1
         if first[2].to_uppercase().as_str() != "HTTP/1.1" {
             return Err(RequestError::BadProtocol);
@@ -46,6 +52,7 @@ impl Request {
         Ok(Request {
             method,
             uri,
+            query,
             headers,
         })
     }
