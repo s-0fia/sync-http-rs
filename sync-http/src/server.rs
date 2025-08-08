@@ -64,6 +64,18 @@ impl Server {
         stream.write_all(response)?;
         self.close_response(stream)
     }
+
+    pub fn write_all<'a>(
+        &mut self,
+        stream: &mut TcpStream,
+        response: impl Into<&'a [u8]>,
+    ) -> Result<(), Box<dyn Error>> {
+        let protocol = b"HTTP/1.1 200\r\n\r\n";
+        stream.write_all(protocol)?;
+        let response: &[u8] = response.into();
+        stream.write_all(response)?;
+        self.close_response(stream)
+    }
 }
 
 impl ServerBuilder {
