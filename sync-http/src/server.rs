@@ -1,20 +1,20 @@
 use crate::{
     query::Query,
     request::{Method, Request},
+    ServerResult,
 };
 use std::{
-    error::Error,
-    io::{self, Read, Write},
+    io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
 };
 
 pub trait ServerStream {
-    fn close_response(&self) -> Result<(), Box<dyn Error>>;
-    fn write_empty(&mut self) -> Result<(), Box<dyn Error>>;
-    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>>;
+    fn close_response(&self) -> ServerResult<()>;
+    fn write_empty(&mut self) -> ServerResult<()>;
+    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> ServerResult<()>;
 }
 
-pub type GetHandler = dyn Fn(Query) -> Result<String, Box<dyn Error>>;
+pub type GetHandler = dyn Fn(Query) -> ServerResult<String>;
 pub type GetHandlerMap = (String, &'static GetHandler);
 
 pub struct ServerBuilder {
@@ -50,7 +50,7 @@ impl Server {
         }
     }
 
-    pub fn request(&mut self) -> Result<(TcpStream, Request), Box<dyn Error>> {
+    pub fn request(&mut self) -> ServerResult<(TcpStream, Request)> {
         let (mut stream, _addr) = self.listener.accept()?;
         let mut buf = [0; 128];
         let mut request = String::new();
@@ -69,11 +69,11 @@ impl Server {
         Ok((stream, request))
     }
 
-    pub fn handle_get(
-        &self,
-        stream: &mut TcpStream,
-        request: Request,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn handle_loop(&mut self) -> ServerResult<()> {
+        todo!()
+    }
+
+    pub fn handle_get(&self, stream: &mut TcpStream, request: Request) -> ServerResult<()> {
         if request.method != Method::Get {
             panic!("Non get request being handled by handle_get().");
         }
@@ -91,18 +91,18 @@ impl Server {
 }
 
 impl ServerStream for TcpStream {
-    fn close_response(&self) -> Result<(), Box<dyn Error>> {
+    fn close_response(&self) -> ServerResult<()> {
         self.shutdown(Shutdown::Write)?;
         Ok(())
     }
 
-    fn write_empty(&mut self) -> Result<(), Box<dyn Error>> {
+    fn write_empty(&mut self) -> ServerResult<()> {
         let response = b"HTTP/1.1 200\r\n\r\n";
         self.write_all(response)?;
         self.close_response()
     }
 
-    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>> {
+    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> ServerResult<()> {
         let protocol = b"HTTP/1.1 200\r\n\r\n";
         self.write_all(protocol)?;
         let response: &[u8] = response.into();
@@ -132,7 +132,7 @@ impl ServerBuilder {
         self
     }
 
-    pub fn bind(self) -> Result<Server, io::Error> {
+    pub fn bind(self) -> ServerResult<Server> {
         let ip = self.ip_address.unwrap_or("127.0.0.1".into());
         let port = self.port.unwrap_or(8080);
         let addr = format!("{ip}:{port}");
