@@ -1,5 +1,5 @@
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct ContentType(pub MediaType, pub MimeType, pub usize);
+pub struct ContentType(pub MediaType, pub MimeType, pub MimeSuffix, pub usize);
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum MediaType {
@@ -20,6 +20,8 @@ pub enum MimeType {
     // Application Types
     JSON,
     OctetStream,
+    XHTML,
+    XML,
 
     // TODO: Audio Types
     // TODO: Font Types
@@ -39,6 +41,29 @@ pub enum MimeType {
     Javascript,
     Plain,
     // TODO: Video Types
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum MimeSuffix {
+    None,
+    GZip,
+    Json,
+    WbXML,
+    XML,
+    Zip,
+}
+
+impl MimeSuffix {
+    fn parse(suffix: &str) -> Option<Self> {
+        Some(match suffix {
+            "gzip" => MimeSuffix::GZip,
+            "json" => MimeSuffix::Json,
+            "wbxml" => MimeSuffix::WbXML,
+            "xml" => MimeSuffix::XML,
+            "zip" => MimeSuffix::Zip,
+            _ => MimeSuffix::None,
+        })
+    }
 }
 
 impl MediaType {
@@ -63,12 +88,14 @@ impl MimeType {
             "*" => MimeType::All,
             "json" => MimeType::JSON,
             "octet-stream" => MimeType::OctetStream,
+            "xhtml" => MimeType::XHTML,
+            "xml" => MimeType::XML,
             "apng" => MimeType::APNG,
             "avif" => MimeType::AVIF,
             "gif" => MimeType::GIF,
             "jpeg" => MimeType::JPEG,
             "png" => MimeType::PNG,
-            "svg+xml" => MimeType::SVG,
+            "svg" => MimeType::SVG,
             "webp" => MimeType::Webp,
             "css" => MimeType::CSS,
             "html" => MimeType::HTML,
@@ -81,7 +108,9 @@ impl MimeType {
     pub fn associated_media(&self) -> MediaType {
         match self {
             MimeType::All => MediaType::All,
-            MimeType::JSON | MimeType::OctetStream => MediaType::Application,
+            MimeType::JSON | MimeType::OctetStream | MimeType::XHTML | MimeType::XML => {
+                MediaType::Application
+            }
             MimeType::APNG
             | MimeType::AVIF
             | MimeType::GIF
@@ -97,7 +126,7 @@ impl MimeType {
 }
 
 impl ContentType {
-    pub fn parse_many(content_types: String) -> Option<Vec<ContentType>> {
+    pub fn parse_many(content_types: String) -> Option<Vec<Self>> {
         let parts = content_types.split(',');
         let mut output = vec![];
         for part in parts {
@@ -115,15 +144,23 @@ impl ContentType {
 
     pub fn parse(content_type: String) -> Option<Self> {
         let parts: Vec<&str> = content_type.split(";q=").collect();
-        let typ: Vec<&str> = parts[0].split('/').collect();
         let priority: usize = if parts.len() > 1 {
             parts[1].parse().ok()?
         } else {
-            0
+            1
         };
+        let media: Vec<&str> = parts[0].split('/').collect();
+        let mime: Vec<&str> = media[1].split('+').collect();
+        let suffix = if mime.len() > 1 {
+            MimeSuffix::parse(mime[1])?
+        } else {
+            MimeSuffix::None
+        };
+        dbg!(&media, priority);
         Self(
-            MediaType::parse(typ[0])?,
-            MimeType::parse(typ[1])?,
+            MediaType::parse(media[0])?,
+            MimeType::parse(mime[0])?,
+            suffix,
             priority,
         )
         .validate()
@@ -151,6 +188,8 @@ mod tests {
                 MimeType::All
                 | MimeType::JSON
                 | MimeType::OctetStream
+                | MimeType::XHTML
+                | MimeType::XML
                 | MimeType::APNG
                 | MimeType::AVIF
                 | MimeType::GIF
@@ -169,7 +208,15 @@ mod tests {
     #[test]
     fn parse_all_types() {
         let ct = ContentType::parse("*/*".into());
-        assert_eq!(ct, Some(ContentType(MediaType::All, MimeType::All, 0)));
+        assert_eq!(
+            ct,
+            Some(ContentType(
+                MediaType::All,
+                MimeType::All,
+                MimeSuffix::None,
+                1
+            ))
+        );
     }
 
     #[test]
@@ -191,7 +238,12 @@ mod tests {
             let ct = ContentType::parse(format!("application/{}", app_types[i]));
             assert_eq!(
                 ct,
-                Some(ContentType(MediaType::Application, mime_types[i], 0))
+                Some(ContentType(
+                    MediaType::Application,
+                    mime_types[i],
+                    MimeSuffix::None,
+                    1
+                ))
             );
         }
     }
@@ -215,7 +267,15 @@ mod tests {
 
         for i in 0..NUM_TYPES {
             let ct = ContentType::parse(format!("image/{}", image_types[i]));
-            assert_eq!(ct, Some(ContentType(MediaType::Image, mime_types[i], 0)));
+            assert_eq!(
+                ct,
+                Some(ContentType(
+                    MediaType::Image,
+                    mime_types[i],
+                    MimeSuffix::None,
+                    1
+                ))
+            );
         }
     }
 
@@ -235,7 +295,15 @@ mod tests {
 
         for i in 0..NUM_TYPES {
             let ct = ContentType::parse(format!("text/{}", text_types[i]));
-            assert_eq!(ct, Some(ContentType(MediaType::Text, mime_types[i], 0)));
+            assert_eq!(
+                ct,
+                Some(ContentType(
+                    MediaType::Text,
+                    mime_types[i],
+                    MimeSuffix::None,
+                    1
+                ))
+            );
         }
     }
 }

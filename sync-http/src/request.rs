@@ -106,7 +106,12 @@ mod tests {
             headers: vec![
                 Header::Host("localhost:8080".into()),
                 Header::UserAgent("curl/8.5.0".into()),
-                Header::Accept(vec![ContentType(MediaType::All, MimeType::All, 0)]),
+                Header::Accept(vec![ContentType(
+                    MediaType::All,
+                    MimeType::All,
+                    MimeSuffix::None,
+                    1,
+                )]),
             ],
         };
 
@@ -129,7 +134,8 @@ mod tests {
             Some(Header::Accept(vec![ContentType(
                 MediaType::Text,
                 MimeType::HTML,
-                0,
+                MimeSuffix::None,
+                1,
             )])),
             None,
             None,
