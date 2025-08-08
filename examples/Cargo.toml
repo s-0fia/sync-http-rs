@@ -12,5 +12,9 @@ sync-http = { version = "0.1.0", path = "../sync-http", features = [] }
 name = "hello"
 path = "hello.rs"
 
+[[example]]
+name = "shutdown"
+path = "shutdown.rs"
+
 [lints]
 workspace = true
