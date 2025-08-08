@@ -1,7 +1,4 @@
-use std::{
-    io,
-    net::{IpAddr, TcpListener},
-};
+use std::{io, net::TcpListener};
 
 pub struct ServerBuilder {
     ip_address: Option<String>,
