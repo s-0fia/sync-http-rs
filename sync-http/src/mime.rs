@@ -1,5 +1,5 @@
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct ContentType(pub MediaType, pub MimeType, pub MimeSuffix, pub usize);
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub struct ContentType(pub MediaType, pub MimeType, pub MimeSuffix, pub f64);
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum MediaType {
@@ -144,10 +144,10 @@ impl ContentType {
 
     pub fn parse(content_type: String) -> Option<Self> {
         let parts: Vec<&str> = content_type.split(";q=").collect();
-        let priority: usize = if parts.len() > 1 {
+        let priority: f64 = if parts.len() > 1 {
             parts[1].parse().ok()?
         } else {
-            1
+            1.0
         };
         let media: Vec<&str> = parts[0].split('/').collect();
         let mime: Vec<&str> = media[1].split('+').collect();
@@ -156,7 +156,6 @@ impl ContentType {
         } else {
             MimeSuffix::None
         };
-        dbg!(&media, priority);
         Self(
             MediaType::parse(media[0])?,
             MimeType::parse(mime[0])?,
@@ -214,7 +213,7 @@ mod tests {
                 MediaType::All,
                 MimeType::All,
                 MimeSuffix::None,
-                1
+                1.0
             ))
         );
     }
@@ -242,7 +241,7 @@ mod tests {
                     MediaType::Application,
                     mime_types[i],
                     MimeSuffix::None,
-                    1
+                    1.0
                 ))
             );
         }
@@ -273,7 +272,7 @@ mod tests {
                     MediaType::Image,
                     mime_types[i],
                     MimeSuffix::None,
-                    1
+                    1.0
                 ))
             );
         }
@@ -301,7 +300,7 @@ mod tests {
                     MediaType::Text,
                     mime_types[i],
                     MimeSuffix::None,
-                    1
+                    1.0
                 ))
             );
         }

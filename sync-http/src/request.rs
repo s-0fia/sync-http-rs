@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::mime::*;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Request {
     pub method: Method,
     pub uri: String,
@@ -27,7 +27,7 @@ impl Method {
 }
 
 // TODO: Add more headers
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Header {
     Host(String),
     UserAgent(String),
@@ -110,7 +110,7 @@ mod tests {
                     MediaType::All,
                     MimeType::All,
                     MimeSuffix::None,
-                    1,
+                    1.0,
                 )]),
             ],
         };
@@ -135,7 +135,7 @@ mod tests {
                 MediaType::Text,
                 MimeType::HTML,
                 MimeSuffix::None,
-                1,
+                1.0,
             )])),
             None,
             None,
