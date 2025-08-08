@@ -20,7 +20,7 @@ fn main() {
     }
 }
 
-fn index(query: Query) -> Result<String, Box<dyn Error>> {
+fn index(_query: Query) -> Result<String, Box<dyn Error>> {
     Ok(r#"<html>
         <head>
             <title>Hello, world!</title>
@@ -37,7 +37,7 @@ fn index(query: Query) -> Result<String, Box<dyn Error>> {
     .to_string())
 }
 
-fn shutdown(query: Query) -> Result<String, Box<dyn Error>> {
+fn shutdown(_query: Query) -> Result<String, Box<dyn Error>> {
     Ok(r#"<html>
         <head>
             <title>Shutting down</title>
