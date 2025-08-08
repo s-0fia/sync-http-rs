@@ -12,7 +12,7 @@ fn example_request() {
 
     let accurate = Request {
         method: Method::Get,
-        uri: "/".into(),
+        uri: "".into(),
         query: Query::default(),
         headers: vec![
             Header::Host("localhost:8080".into()),
