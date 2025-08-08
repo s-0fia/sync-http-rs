@@ -1,4 +1,4 @@
-use crate::request::Request;
+use crate::{query::Query, request::Request};
 use std::{
     error::Error,
     io::{self, Read, Write},
@@ -11,18 +11,29 @@ pub trait ServerStream {
     fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>>;
 }
 
+pub type GetHandler = dyn Fn(&mut TcpStream, Query) -> Result<(), Box<dyn Error>>;
+pub type GetHandlerMap = (String, &'static GetHandler);
+
 pub struct ServerBuilder {
     ip_address: Option<String>,
     port: Option<u16>,
     ttl: Option<u32>,
+    get_handlers: Vec<GetHandlerMap>,
 }
 
-#[derive(Debug)]
+#[derive()]
 pub struct Server {
     listener: TcpListener,
+    get_handlers: Vec<GetHandlerMap>,
 }
 
 impl Server {
+    fn new(listener: TcpListener, get_handlers: Vec<GetHandlerMap>) -> Self {
+        Self {
+            listener,
+            get_handlers,
+        }
+    }
     /// Creates a new ServerBuilder which defaults with values of:
     /// - ttl: None (time to live)
     /// - ip_address: 127.0.0.1
@@ -32,6 +43,7 @@ impl Server {
             ip_address: None,
             port: None,
             ttl: None,
+            get_handlers: vec![],
         }
     }
 
@@ -92,6 +104,11 @@ impl ServerBuilder {
         Self { ttl, ..self }
     }
 
+    pub fn get(mut self, path: String, handler: &'static GetHandler) -> Self {
+        self.get_handlers.push((path, handler));
+        self
+    }
+
     pub fn bind(self) -> Result<Server, io::Error> {
         let ip = self.ip_address.unwrap_or("127.0.0.1".into());
         let port = self.port.unwrap_or(8080);
@@ -102,6 +119,6 @@ impl ServerBuilder {
             listener.set_ttl(ttl)?;
         }
 
-        Ok(Server { listener })
+        Ok(Server::new(listener, self.get_handlers))
     }
 }
