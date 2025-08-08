@@ -6,6 +6,8 @@ use crate::{
 use std::{
     io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
+    sync::{mpsc::Receiver, Arc, Mutex},
+    thread,
 };
 
 pub trait ServerStream {
@@ -21,20 +23,38 @@ pub struct ServerBuilder {
     ip_address: Option<String>,
     port: Option<u16>,
     ttl: Option<u32>,
+    shutdown: Option<Receiver<()>>,
     get_handlers: Vec<GetHandlerMap>,
 }
+
+static mut RUNNING: bool = false;
 
 #[derive()]
 pub struct Server {
     listener: TcpListener,
+    shutdown: Option<Arc<Mutex<Receiver<()>>>>,
     get_handlers: Vec<GetHandlerMap>,
 }
 
 impl Server {
-    fn new(listener: TcpListener, get_handlers: Vec<GetHandlerMap>) -> Self {
-        Self {
-            listener,
-            get_handlers,
+    fn new(
+        listener: TcpListener,
+        shutdown: Option<Receiver<()>>,
+        get_handlers: Vec<GetHandlerMap>,
+    ) -> Self {
+        if let Some(shutdown) = shutdown {
+            let shutdown = Some(Arc::from(Mutex::new(shutdown)));
+            Self {
+                listener,
+                shutdown,
+                get_handlers,
+            }
+        } else {
+            Self {
+                listener,
+                shutdown: None,
+                get_handlers,
+            }
         }
     }
     /// Creates a new ServerBuilder which defaults with values of:
@@ -46,6 +66,7 @@ impl Server {
             ip_address: None,
             port: None,
             ttl: None,
+            shutdown: None,
             get_handlers: vec![],
         }
     }
@@ -70,7 +91,27 @@ impl Server {
     }
 
     pub fn handle_loop(&mut self) -> ServerResult<()> {
-        todo!()
+        unsafe {
+            RUNNING = true;
+        }
+        if let Some(shutdown) = self.shutdown.clone() {
+            thread::spawn(move || {
+                let lock = shutdown.lock().unwrap();
+                if lock.recv().is_ok() {
+                    unsafe { RUNNING = false };
+                }
+            });
+        }
+        while unsafe { RUNNING } {
+            let (mut stream, req) = self.request()?;
+            dbg!(&req);
+            match req.method {
+                Method::Get => self.handle_get(&mut stream, req)?,
+                Method::Post => todo!(),
+            }
+        }
+
+        Ok(())
     }
 
     pub fn handle_get(&self, stream: &mut TcpStream, request: Request) -> ServerResult<()> {
@@ -112,19 +153,24 @@ impl ServerStream for TcpStream {
 }
 
 impl ServerBuilder {
-    pub fn ip_address(self, ip: String) -> Self {
-        let ip_address = Some(ip);
-        Self { ip_address, ..self }
+    pub fn ip_address(mut self, ip: String) -> Self {
+        self.ip_address = Some(ip);
+        self
     }
 
-    pub fn port(self, port: u16) -> Self {
-        let port = Some(port);
-        Self { port, ..self }
+    pub fn port(mut self, port: u16) -> Self {
+        self.port = Some(port);
+        self
     }
 
-    pub fn ttl(self, ttl: u32) -> Self {
-        let ttl = Some(ttl);
-        Self { ttl, ..self }
+    pub fn ttl(mut self, ttl: u32) -> Self {
+        self.ttl = Some(ttl);
+        self
+    }
+
+    pub fn shutdown(mut self, shutdown: Receiver<()>) -> Self {
+        self.shutdown = Some(shutdown);
+        self
     }
 
     pub fn get(mut self, route: &str, handler: &'static GetHandler) -> Self {
@@ -132,7 +178,7 @@ impl ServerBuilder {
         self
     }
 
-    pub fn bind(self) -> ServerResult<Server> {
+    pub fn bind(self) -> ServerResult<()> {
         let ip = self.ip_address.unwrap_or("127.0.0.1".into());
         let port = self.port.unwrap_or(8080);
         let addr = format!("{ip}:{port}");
@@ -142,6 +188,6 @@ impl ServerBuilder {
             listener.set_ttl(ttl)?;
         }
 
-        Ok(Server::new(listener, self.get_handlers))
+        Server::new(listener, self.shutdown, self.get_handlers).handle_loop()
     }
 }
