@@ -28,7 +28,7 @@ impl Request {
             return Err(RequestError::TooManyValues);
         }
         let method = Method::parse(first[0])?;
-        let uri = first[1].to_string();
+        let uri = sanatise_uri(first[1]);
         // We only support HTTP/1.1
         if first[2].to_uppercase().as_str() != "HTTP/1.1" {
             return Err(RequestError::BadProtocol);
@@ -48,4 +48,12 @@ impl Request {
             headers,
         })
     }
+}
+
+fn sanatise_uri(uri: &str) -> String {
+    uri.replace(".", "")
+        .split("/")
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("/")
 }
