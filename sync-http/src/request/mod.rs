@@ -59,7 +59,7 @@ impl Request {
 }
 
 fn sanatise_uri(uri: &str) -> String {
-    uri.replace(".", "")
+    uri.trim_matches('.')
         .split("/")
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()

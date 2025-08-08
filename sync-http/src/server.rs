@@ -18,7 +18,7 @@ pub trait ServerStream {
     fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> ServerResult<()>;
 }
 
-pub type GetHandler = dyn Fn(Query) -> ServerResult<String>;
+pub type GetHandler = dyn Fn(String, Query) -> ServerResult<String> + Sync + Send;
 pub type GetHandlerMap = (Regex, &'static GetHandler);
 
 pub struct ServerBuilder {
@@ -73,7 +73,7 @@ impl Server {
         }
     }
 
-    pub fn request(&mut self) -> ServerResult<(TcpStream, Request)> {
+    pub fn poll(&mut self) -> ServerResult<(TcpStream, Request)> {
         let (mut stream, _addr) = self.listener.accept()?;
         let mut buf = [0; 128];
         let mut request = String::new();
@@ -105,10 +105,14 @@ impl Server {
             });
         }
         while unsafe { RUNNING } {
-            let (mut stream, req) = self.request()?;
+            let poll = self.poll();
+            if poll.is_err() {
+                continue;
+            }
+            let (stream, req) = poll?;
             dbg!(&req);
             match req.method {
-                Method::Get => self.handle_get(&mut stream, req)?,
+                Method::Get => self.handle_get(stream, req)?,
                 Method::Post => todo!(),
             }
         }
@@ -116,18 +120,20 @@ impl Server {
         Ok(())
     }
 
-    pub fn handle_get(&self, stream: &mut TcpStream, request: Request) -> ServerResult<()> {
+    pub fn handle_get(&self, mut stream: TcpStream, request: Request) -> ServerResult<()> {
         if request.method != Method::Get {
             panic!("Non get request being handled by handle_get().");
         }
-
-        for (path, handler) in self.get_handlers.iter() {
-            if path.is_match(request.uri.as_str()) {
-                let response = handler(Query::default())?;
-                stream.write_bytes(response.as_bytes())?;
-                break;
+        let get_handlers = self.get_handlers.clone();
+        thread::spawn(move || {
+            for (path, handler) in get_handlers.iter() {
+                if path.is_match(request.uri.as_str()) {
+                    let response = handler(request.uri, Query::default()).unwrap();
+                    stream.write_bytes(response.as_bytes()).unwrap();
+                    break;
+                }
             }
-        }
+        });
 
         Ok(())
     }
@@ -198,6 +204,8 @@ impl ServerBuilder {
         if let Some(ttl) = self.ttl {
             listener.set_ttl(ttl)?;
         }
+
+        listener.set_nonblocking(true)?;
 
         Server::new(listener, self.shutdown, self.get_handlers).handle_loop()
     }

@@ -20,7 +20,7 @@ fn main() -> ServerResult<()> {
         .bind()
 }
 
-fn index(_query: Query) -> ServerResult<String> {
+fn index(_uri: String, _query: Query) -> ServerResult<String> {
     Ok(r#"<html>
         <head>
             <title>Shutdown example</title>
@@ -35,7 +35,7 @@ fn index(_query: Query) -> ServerResult<String> {
     .to_string())
 }
 
-fn shutdown(_query: Query) -> ServerResult<String> {
+fn shutdown(_uri: String, _query: Query) -> ServerResult<String> {
     if let Some(shutdown) = unsafe { SHUTDOWN.clone() } {
         shutdown.send(())?;
         // Sleep 100 ms just to ensure that the

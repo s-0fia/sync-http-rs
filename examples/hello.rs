@@ -7,7 +7,7 @@ fn main() -> ServerResult<()> {
         .bind()
 }
 
-fn index(_query: Query) -> ServerResult<String> {
+fn index(_uri: String, _query: Query) -> ServerResult<String> {
     Ok(r#"<html>
         <head>
             <title>Hello, world!</title>
