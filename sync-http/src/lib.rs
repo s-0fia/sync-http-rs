@@ -7,6 +7,7 @@ use std::{
 pub mod errors;
 pub mod mime;
 pub mod request;
+pub mod server;
 
 pub fn listen() -> Result<(), std::io::Error> {
     let listener = TcpListener::bind("127.0.0.1:8080")?;
