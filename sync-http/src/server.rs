@@ -1,10 +1,15 @@
+use crate::request::Request;
 use std::{
     error::Error,
     io::{self, Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
 };
 
-use crate::request::Request;
+pub trait ServerStream {
+    fn close_response(&self) -> Result<(), Box<dyn Error>>;
+    fn write_empty(&mut self) -> Result<(), Box<dyn Error>>;
+    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>>;
+}
 
 pub struct ServerBuilder {
     ip_address: Option<String>,
@@ -15,7 +20,6 @@ pub struct ServerBuilder {
 #[derive(Debug)]
 pub struct Server {
     listener: TcpListener,
-    expecting_response: bool,
 }
 
 impl Server {
@@ -47,34 +51,28 @@ impl Server {
         }
         let request = Request::parse(request)?;
         stream.shutdown(Shutdown::Read)?;
-        self.expecting_response = true;
         Ok((stream, request))
     }
+}
 
-    pub fn close_response(&mut self, stream: &TcpStream) -> Result<(), Box<dyn Error>> {
-        if self.expecting_response {
-            stream.shutdown(Shutdown::Write)?;
-            self.expecting_response = false;
-        }
+impl ServerStream for TcpStream {
+    fn close_response(&self) -> Result<(), Box<dyn Error>> {
+        self.shutdown(Shutdown::Write)?;
         Ok(())
     }
 
-    pub fn write_empty(&mut self, stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+    fn write_empty(&mut self) -> Result<(), Box<dyn Error>> {
         let response = b"HTTP/1.1 200\r\n\r\n";
-        stream.write_all(response)?;
-        self.close_response(stream)
+        self.write_all(response)?;
+        self.close_response()
     }
 
-    pub fn write_all<'a>(
-        &mut self,
-        stream: &mut TcpStream,
-        response: impl Into<&'a [u8]>,
-    ) -> Result<(), Box<dyn Error>> {
+    fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>> {
         let protocol = b"HTTP/1.1 200\r\n\r\n";
-        stream.write_all(protocol)?;
+        self.write_all(protocol)?;
         let response: &[u8] = response.into();
-        stream.write_all(response)?;
-        self.close_response(stream)
+        self.write_all(response)?;
+        self.close_response()
     }
 }
 
@@ -104,9 +102,6 @@ impl ServerBuilder {
             listener.set_ttl(ttl)?;
         }
 
-        Ok(Server {
-            listener,
-            expecting_response: false,
-        })
+        Ok(Server { listener })
     }
 }
