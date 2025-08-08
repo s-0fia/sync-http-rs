@@ -28,7 +28,8 @@ impl Request {
             return Err(RequestError::TooManyValues);
         }
         let method = Method::parse(first[0])?;
-        let uri = sanatise_uri(first[1]);
+        let uri_parts: Vec<&str> = first[1].split("?").collect();
+        let uri = sanatise_uri(uri_parts[0]);
         // We only support HTTP/1.1
         if first[2].to_uppercase().as_str() != "HTTP/1.1" {
             return Err(RequestError::BadProtocol);
