@@ -1,8 +1,10 @@
 use crate::{
+    errors::FailedToCompileRoute,
     query::Query,
     request::{Method, Request},
     ServerResult,
 };
+use regex::Regex;
 use std::{
     io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
@@ -17,7 +19,7 @@ pub trait ServerStream {
 }
 
 pub type GetHandler = dyn Fn(Query) -> ServerResult<String>;
-pub type GetHandlerMap = (String, &'static GetHandler);
+pub type GetHandlerMap = (Regex, &'static GetHandler);
 
 pub struct ServerBuilder {
     ip_address: Option<String>,
@@ -120,7 +122,7 @@ impl Server {
         }
 
         for (path, handler) in self.get_handlers.iter() {
-            if request.uri.eq(path) {
+            if path.is_match(request.uri.as_str()) {
                 let response = handler(Query::default())?;
                 stream.write_bytes(response.as_bytes())?;
                 break;
@@ -173,9 +175,18 @@ impl ServerBuilder {
         self
     }
 
-    pub fn get(mut self, route: &str, handler: &'static GetHandler) -> Self {
-        self.get_handlers.push((route.to_string(), handler));
-        self
+    pub fn get(mut self, route: &str, handler: &'static GetHandler) -> ServerResult<Self> {
+        let route = route
+            .replace("/", r"\/")
+            .replace(".", r"\.")
+            .replace("*", r"[A-Za-z0-9\-_~.]*");
+        let route = format!("^{route}$");
+        if let Ok(re_route) = Regex::new(route.as_str()) {
+            self.get_handlers.push((re_route, handler));
+        } else {
+            Err(FailedToCompileRoute)?;
+        }
+        Ok(self)
     }
 
     pub fn bind(self) -> ServerResult<()> {

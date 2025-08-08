@@ -7,17 +7,32 @@ use sync_http::{query::Query, server::Server, ServerResult};
 
 static mut SHUTDOWN: Option<Sender<()>> = None;
 
-fn main() {
+fn main() -> ServerResult<()> {
     let (send, recv) = channel();
     unsafe {
         SHUTDOWN = Some(send);
     }
     Server::create()
         .ip_address("192.168.126.128".into())
-        .get("/", &shutdown)
+        .get("close", &shutdown)?
+        .get("*", &index)?
         .shutdown(recv)
         .bind()
-        .unwrap();
+}
+
+fn index(_query: Query) -> ServerResult<String> {
+    Ok(r#"<html>
+        <head>
+            <title>Shutdown example</title>
+        </head>
+        <body>
+            <form action="./close">
+                <input type="submit" value="Shut Server Down" />
+            </form>
+        </body>
+        </html>
+        "#
+    .to_string())
 }
 
 fn shutdown(_query: Query) -> ServerResult<String> {
