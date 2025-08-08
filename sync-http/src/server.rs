@@ -1,4 +1,10 @@
-use std::{io, net::TcpListener};
+use std::{
+    error::Error,
+    io::{self, Read, Write},
+    net::{Shutdown, TcpListener},
+};
+
+use crate::request::Request;
 
 pub struct ServerBuilder {
     ip_address: Option<String>,
@@ -21,6 +27,25 @@ impl Server {
             port: None,
             ttl: None,
         }
+    }
+
+    pub fn get_request(&self) -> Result<Request, Box<dyn Error>> {
+        let (mut stream, _addr) = self.listener.accept()?;
+        let mut buf = [0; 128];
+        let mut request = String::new();
+        loop {
+            let length = stream.read(&mut buf)?;
+            for b in buf.iter().take(length) {
+                let ch = *b as char;
+                request.push(ch);
+            }
+            if request.contains("\r\n\r\n") {
+                break;
+            }
+        }
+        let request = Request::parse(request)?;
+        stream.shutdown(Shutdown::Read)?;
+        Ok(request)
     }
 }
 
