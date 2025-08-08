@@ -80,7 +80,7 @@ impl Server {
 
         for (path, handler) in self.get_handlers.iter() {
             if request.uri.eq(path) {
-                let response = handler(Query::new())?;
+                let response = handler(Query::default())?;
                 stream.write_bytes(response.as_bytes())?;
                 break;
             }
