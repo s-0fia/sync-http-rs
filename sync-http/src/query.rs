@@ -9,6 +9,10 @@ pub struct KeyValue {
 }
 
 impl Query {
+    pub fn new() -> Self {
+        Self { queries: vec![] }
+    }
+
     pub fn parse_all(queries: String) -> Self {
         todo!()
     }

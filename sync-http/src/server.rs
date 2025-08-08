@@ -1,4 +1,7 @@
-use crate::{query::Query, request::Request};
+use crate::{
+    query::Query,
+    request::{Method, Request},
+};
 use std::{
     error::Error,
     io::{self, Read, Write},
@@ -11,7 +14,7 @@ pub trait ServerStream {
     fn write_bytes<'a>(&mut self, response: impl Into<&'a [u8]>) -> Result<(), Box<dyn Error>>;
 }
 
-pub type GetHandler = dyn Fn(&mut TcpStream, Query) -> Result<(), Box<dyn Error>>;
+pub type GetHandler = dyn Fn(Query) -> Result<String, Box<dyn Error>>;
 pub type GetHandlerMap = (String, &'static GetHandler);
 
 pub struct ServerBuilder {
@@ -47,7 +50,7 @@ impl Server {
         }
     }
 
-    pub fn get_request(&mut self) -> Result<(TcpStream, Request), Box<dyn Error>> {
+    pub fn request(&mut self) -> Result<(TcpStream, Request), Box<dyn Error>> {
         let (mut stream, _addr) = self.listener.accept()?;
         let mut buf = [0; 128];
         let mut request = String::new();
@@ -64,6 +67,26 @@ impl Server {
         let request = Request::parse(request)?;
         stream.shutdown(Shutdown::Read)?;
         Ok((stream, request))
+    }
+
+    pub fn handle_get(
+        &self,
+        stream: &mut TcpStream,
+        request: Request,
+    ) -> Result<(), Box<dyn Error>> {
+        if request.method != Method::Get {
+            panic!("Non get request being handled by handle_get().");
+        }
+
+        for (path, handler) in self.get_handlers.iter() {
+            if request.uri.eq(path) {
+                let response = handler(Query::new())?;
+                stream.write_bytes(response.as_bytes())?;
+                break;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -104,8 +127,8 @@ impl ServerBuilder {
         Self { ttl, ..self }
     }
 
-    pub fn get(mut self, path: String, handler: &'static GetHandler) -> Self {
-        self.get_handlers.push((path, handler));
+    pub fn get(mut self, route: &str, handler: &'static GetHandler) -> Self {
+        self.get_handlers.push((route.to_string(), handler));
         self
     }
 
