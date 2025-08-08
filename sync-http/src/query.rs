@@ -1,3 +1,4 @@
+#[derive(Default)]
 pub struct Query {
     pub queries: Vec<KeyValue>,
 }
@@ -15,11 +16,5 @@ impl Query {
 
     pub fn parse(query: String) -> Option<Self> {
         todo!()
-    }
-}
-
-impl Default for Query {
-    fn default() -> Self {
-        Self { queries: vec![] }
     }
 }
