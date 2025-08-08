@@ -31,7 +31,7 @@ impl Method {
 pub enum Header {
     Host(String),
     UserAgent(String),
-    Accept(ContentType),
+    Accept(Vec<ContentType>),
 }
 
 impl Header {
@@ -45,7 +45,7 @@ impl Header {
         Some(match head_type.to_uppercase().trim() {
             "HOST" => Self::Host(head_value),
             "USER-AGENT" => Self::UserAgent(head_value),
-            "ACCEPT" => Self::Accept(ContentType::parse(head_value)?),
+            "ACCEPT" => Self::Accept(ContentType::parse_many(head_value)?),
             _ => None?,
         })
     }
@@ -106,7 +106,7 @@ mod tests {
             headers: vec![
                 Header::Host("localhost:8080".into()),
                 Header::UserAgent("curl/8.5.0".into()),
-                Header::Accept(ContentType(MediaType::All, MimeType::All)),
+                Header::Accept(vec![ContentType(MediaType::All, MimeType::All, 0)]),
             ],
         };
 
@@ -126,7 +126,11 @@ mod tests {
         let test_vals: [Option<_>; NUM_TESTS] = [
             Some(Header::Host("localhost:8080".into())),
             Some(Header::UserAgent("curl/8.5.0".into())),
-            Some(Header::Accept(ContentType(MediaType::Text, MimeType::HTML))),
+            Some(Header::Accept(vec![ContentType(
+                MediaType::Text,
+                MimeType::HTML,
+                0,
+            )])),
             None,
             None,
         ];

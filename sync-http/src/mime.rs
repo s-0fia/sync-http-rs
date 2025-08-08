@@ -1,5 +1,5 @@
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct ContentType(pub MediaType, pub MimeType);
+pub struct ContentType(pub MediaType, pub MimeType, pub usize);
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum MediaType {
@@ -97,9 +97,36 @@ impl MimeType {
 }
 
 impl ContentType {
+    pub fn parse_many(content_types: String) -> Option<Vec<ContentType>> {
+        let parts = content_types.split(',');
+        let mut output = vec![];
+        for part in parts {
+            if let Some(ct) = Self::parse(part.to_string()) {
+                output.push(ct);
+            }
+        }
+
+        if output.is_empty() {
+            None
+        } else {
+            Some(output)
+        }
+    }
+
     pub fn parse(content_type: String) -> Option<Self> {
-        let parts: Vec<&str> = content_type.split("/").collect();
-        Self(MediaType::parse(parts[0])?, MimeType::parse(parts[1])?).validate()
+        let parts: Vec<&str> = content_type.split(";q=").collect();
+        let typ: Vec<&str> = parts[0].split('/').collect();
+        let priority: usize = if parts.len() > 1 {
+            parts[1].parse().ok()?
+        } else {
+            0
+        };
+        Self(
+            MediaType::parse(typ[0])?,
+            MimeType::parse(typ[1])?,
+            priority,
+        )
+        .validate()
     }
 
     pub fn validate(self) -> Option<Self> {
@@ -142,7 +169,7 @@ mod tests {
     #[test]
     fn parse_all_types() {
         let ct = ContentType::parse("*/*".into());
-        assert_eq!(ct, Some(ContentType(MediaType::All, MimeType::All)));
+        assert_eq!(ct, Some(ContentType(MediaType::All, MimeType::All, 0)));
     }
 
     #[test]
@@ -162,7 +189,10 @@ mod tests {
 
         for i in 0..NUM_TYPES {
             let ct = ContentType::parse(format!("application/{}", app_types[i]));
-            assert_eq!(ct, Some(ContentType(MediaType::Application, mime_types[i])));
+            assert_eq!(
+                ct,
+                Some(ContentType(MediaType::Application, mime_types[i], 0))
+            );
         }
     }
 
@@ -185,7 +215,7 @@ mod tests {
 
         for i in 0..NUM_TYPES {
             let ct = ContentType::parse(format!("image/{}", image_types[i]));
-            assert_eq!(ct, Some(ContentType(MediaType::Image, mime_types[i])));
+            assert_eq!(ct, Some(ContentType(MediaType::Image, mime_types[i], 0)));
         }
     }
 
@@ -205,7 +235,7 @@ mod tests {
 
         for i in 0..NUM_TYPES {
             let ct = ContentType::parse(format!("text/{}", text_types[i]));
-            assert_eq!(ct, Some(ContentType(MediaType::Text, mime_types[i])));
+            assert_eq!(ct, Some(ContentType(MediaType::Text, mime_types[i], 0)));
         }
     }
 }

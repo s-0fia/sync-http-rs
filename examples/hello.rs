@@ -1,7 +1,10 @@
 use sync_http::server::Server;
 
 fn main() {
-    let mut serv = Server::create().bind().unwrap();
+    let mut serv = Server::create()
+        .ip_address("192.168.126.128".into())
+        .bind()
+        .unwrap();
 
     let (mut stream, req) = serv.get_request().unwrap();
     dbg!(req);
