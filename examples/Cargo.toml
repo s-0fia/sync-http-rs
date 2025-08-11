@@ -16,5 +16,9 @@ path = "hello.rs"
 name = "shutdown"
 path = "shutdown.rs"
 
+[[example]]
+name = "timedshutdown"
+path = "timed_shutdown.rs"
+
 [lints]
 workspace = true

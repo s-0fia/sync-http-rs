@@ -3,6 +3,7 @@ use sync_http::{query::Query, server::Server, ServerResult};
 fn main() -> ServerResult<()> {
     Server::create()
         .ip_address("192.168.126.128".into())
+        .port(8080)
         .get("*", &index)?
         .bind()
 }
